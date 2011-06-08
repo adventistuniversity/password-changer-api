@@ -391,18 +391,20 @@ function _password_changer_api_check_user($system, $user_name) {
  //Get sub-module file directory and name from the system table
  $filename = db_query('SELECT `filename` FROM {system} WHERE `name` = :name AND `status` = \'1\' LIMIT 0,1',
                     array(':name' => $system))->fetchField();
- 
+  
  //Add the Drupal root directory 
  $include_file = DRUPAL_ROOT . '/'. $filename;
      
  //Check if file exist
- if(file_exists($include_file )) {
+ if(file_exists($include_file) && ($filename != '')) {
   //Include sub-module file to be able to call the hook if define 
   include_once($include_file);
   
+  //Call the module hook to check the user define by the sub-module 
+  return module_invoke($system, 'password_changer_api_check_user', $user_name);
  }
- //Call the module hook to check the user define by the sub-module 
- return module_invoke($system, 'password_changer_api_check_user', $user_name);
+
+ return FALSE;
 }
 
 /**
@@ -452,9 +454,11 @@ function _password_changer_api_change_password($system, $user_name, $pass, $curr
   
   // Create Drupal message has not been set don't display any message
   if (is_object($status) ) {
+   
+   
    //If there is an error   
    if( $status->status == 'error' ) {
-    
+   
     //Set message call for drupal to set the password
     drupal_set_message($status->message, $status->status);
     
@@ -472,7 +476,8 @@ function _password_changer_api_change_password($system, $user_name, $pass, $curr
      drupal_set_message($status->message, $status->status);
      
    }  
-  }  
+  }
+   
 }
 
 /**

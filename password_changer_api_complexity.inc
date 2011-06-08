@@ -18,11 +18,13 @@ function password_changer_api_check_maximum_length_requirement($password) {
  
  //Get maximum length
  $min_maximum =  _password_changer_api_get_mim_maxlength( $register_modules );
+ 
 
  if (strlen($password) > $min_maximum['value'] && $min_maximum != 0) {
     
   watchdog('password_changer_api', 'Password is longer than the maximum length' .
            $min_maximum['value'] . ' require by system ' . $min_maximum['system'], WATCHDOG_INFO);
+    
   throw new passwordChangerApiExeption(t('Password is longer than the maximum length  @maxlen require by system @system',
                                      array( '@maxlen' => $min_maximum['value'],  '@system' => $min_maximum['system'] )));
   return array('status' => t('error'), 'message' => t('Password is longer than the maximum lent @maxlen require by system @system',
@@ -44,19 +46,20 @@ function password_changer_api_check_maximum_length_requirement($password) {
 
 
 function password_changer_api_check_minimum_length_requirement($password) {
- 
+  
  //Get register modules
  $register_modules = variable_get('password_changer_api_register_modules', array());
- 
+
  //Get minimum length 
  $max_minimum  =  _password_changer_api_get_max_minlength( $register_modules );
  
  if (strlen($password) < $max_minimum['value'] && $max_minimum != 0) {
-
+ 
   watchdog('password_changer_api', 'Password is shorter than the minimum length ' .
            $max_minimum['value'] . ' require by system ' . $max_minimum['system'], WATCHDOG_INFO);  
   throw new passwordChangerApiExeption(t('Password is shorter than the minimum length  @minlen require by system @system',
                                          array( '@minlen' => $max_minimum['value'],  '@system' => $max_minimum['system'] )));
+  
   return array('status' => t('error'), 'message' => t('Password is shorter than the minimum length @minlen require by system @system',
                                          array( '@minlen' => $max_minimum['value'],  '@system' => $max_minimum['system'])));
  }
@@ -91,56 +94,64 @@ function _password_changer_api_check_property_requirement($password) {
  //Default functions
  $default_validate_function = array('max_length' => 'check_maximum_length_requirement',
                                     'min_length' => 'check_minimum_length_requirement');
-  
- //For modules that user has account 
- foreach ($_SESSION['permission_modules'] AS $index => $permission_module) {
-  
-  //Check if the module has complexity rules 
-   if(isset($register_modules[$permission_module]['#complexity'])) {
-    
-     //Getting complexity
-     $complexity = $register_modules[$permission_module]['#complexity'];
+ 
+ 
+  if (isset($_SESSION['permission_modules'])) {
+   
+    //For modules that user has account 
+    foreach ($_SESSION['permission_modules'] AS $index => $permission_module) {
      
-     //Foreach property in the complexity
-     foreach ($complexity AS $property_name => $property_value ) {
-
-      //Value set in the complexity array this could be a negative (deny)number
-      //positive(require at least) number or zero (allow)
-      $value = $property_value['value'];
-      //Regex patter 
-      $pattern = NULL;
+     //Check if the module has complexity rules 
+      if(isset($register_modules[$permission_module]['#complexity'])) {
       
-      //If there is a regex function define for this property
-      //set it to the pattern
-      if (isset($default_regex_values[$property_name])) {
-       $pattern = $default_regex_values[$property_name];
-      }//If user has define a patter in the current property
-      elseif (isset($property_value['pattern'])) {
-       $pattern = $property_value['pattern'];
-      }
-      
-      //If property has a pattern, value (negative number, positive number or zero)
-      //and new password set then check the patter and throw error if necessary.
-      if (!is_null($pattern) && isset($value) && isset($password)) {
-      _password_changer_api_check_pattern( $password, $pattern, $value, $property_value['error_message'] );
-      }
-            
-      //Call functions define as default for max_length and min_length
-      if (isset($default_validate_function[$property_name])) {
-       //Throw an exception
-       module_invoke('password_changer_api', $default_validate_function[$property_name], $password);
-      }
-      
-      //Call validation function define by user
-      if (isset($property_value['validate_function'])) {
-       if (function_exists($property_value['validate_function'])) {
-        //Call user function
-        call_user_func_array($property_value['validate_function']);
-       }  
-     }
-    } 
-   } 
- }
+        //Getting complexity
+        $complexity = $register_modules[$permission_module]['#complexity'];
+                
+        //Foreach property in the complexity
+        foreach ($complexity AS $property_name => $property_value ) {
+   
+           //Value set in the complexity array this could be a negative (deny)number
+           //positive(require at least) number or zero (allow)
+           $value = $property_value['value'];
+           //Regex patter 
+           $pattern = NULL;
+           
+           //If there is a regex function define for this property
+           //set it to the pattern
+           if (isset($default_regex_values[$property_name])) {
+            $pattern = $default_regex_values[$property_name];
+           }//If user has define a patter in the current property
+           elseif (isset($property_value['pattern'])) {
+            $pattern = $property_value['pattern'];
+           }
+           
+           //If property has a pattern, value (negative number, positive number or zero)
+           //and new password set then check the patter and throw error if necessary.
+           if (!is_null($pattern) && isset($value) && isset($password)) {
+           _password_changer_api_check_pattern( $password, $pattern, $value, $property_value['error_message'] );
+           }
+                 
+           //Call functions define as default for max_length and min_length
+           if (isset($default_validate_function[$property_name])) {
+            //Throw an exception
+            module_invoke('password_changer_api', $default_validate_function[$property_name], $password);
+           }
+           
+           //Call validation function define by user
+           if (isset($property_value['validate_function'])) {
+            if (function_exists($property_value['validate_function'])) {
+             //Call user function
+             call_user_func_array($property_value['validate_function']);
+            }  
+          }
+        
+        // End of foreach
+       }
+      } 
+    }
+    
+  }
+  
 }
 
 /*
@@ -169,11 +180,16 @@ function _password_changer_api_check_pattern($password, $pattern, $value, $error
   
  //if is require and it does not have this value at lea
  if ($value > 0 && $has_item < $value ) {
+   watchdog( WATCHDOG_ERROR, 'Value is required and is not in the password.' .
+            $error_message);
    throw new passwordChangerApiExeption($error_message); 
  }//if is this value is deny and it has this value throw an error
  elseif ($value < 0 && $has_item > 0 ) {
+   watchdog(WATCHDOG_ERROR, 'Value is deny and is in the password' .
+            $error_message);
    throw new passwordChangerApiExeption($error_message); 
  }
+ 
  
 }
 
@@ -205,7 +221,7 @@ function _password_changer_api_get_max_minlength( $register_module ) {
       }  
     }
  }
- 
+
  if (empty($max_minlength)) {  
    watchdog( 'password_changer_api_complexity', 'None maximum minimum value set in the sub-modules.', WATCHDOG_INFO);
  }
