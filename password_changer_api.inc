@@ -166,14 +166,14 @@ function password_changer_api_system($system = array(), $complexity = array()) {
  //If array field name is not set throw an error.
  if (!isset($system['#title'])) {
     
-    watchdog('password_changer_api', 'Require field name is not set or is empty');
+    watchdog('[password_changer_api_inc][system function] ', 'Require field name is not set or is empty', WATCHDOG_ERROR);
     
     throw new passwordChangerApiExeption('Require field name is not set or is empty.');
  }
  
  if ( $system['#title'] == '' || is_null( $system['#title']) ) {
   
-    watchdog('password_changer_api', 'Require field name is empty or set to NULL.');
+    watchdog('[password_changer_api_inc][system function] ', 'Require field name is empty or set to NULL.', WATCHDOG_ERROR);
     
     throw new passwordChangerApiExeption('Require field name is empty or set to NULL.');
  }
@@ -303,7 +303,7 @@ function _password_changer_api_add_system($system = array(), $complexity = array
  //If the info variable is empty throw an error
  if (empty($system)) {
   //Log the issue in watchdog table in Drupal
-  watchdog('password_changer_api', 'The array() variable $info is empty.');
+  watchdog('[password_changer_api_inc][add_system function] ', 'The array() variable $info is empty.', WATCHDOG_ERROR);
   //Throw error
   throw new passwordChangerApiExeption('The array() variable $info is empty.');
  }
@@ -312,7 +312,7 @@ function _password_changer_api_add_system($system = array(), $complexity = array
  //Make sure than the name of the module is set.
  if (!isset($system['#module_name'])) {
   //Log the issue in watchdog table
-  watchdog('password_changer_api', 'The module name is not set.');
+  watchdog('[password_changer_api_inc][add_system function] ', 'The module name is not set.', WATCHDOG_ERROR);
   //Throw error
   throw new passwordChangerApiExeption('The module name is not set.');
   
@@ -338,7 +338,7 @@ function _password_changer_api_add_system($system = array(), $complexity = array
  }
  else {  
    //Log exception in watchdog
-   watchdog('password_changer_api', 'This module name is already register.');
+   watchdog('[password_changer_api_inc][add_system function] ', 'This module name is already register.', WATCHDOG_ERROR);
   
    //Throw error
    throw new passwordChangerApiExeption('This module name is already register.');
@@ -364,7 +364,8 @@ function _password_changer_api_remove_system($module_name) {
  //Unregistered the angel module
  if (!empty($register_modules)) {
   //Log Uninstall to watchdog
-  watchdog('password_changer_api', 'Uninstall module '.$module_name .'.');
+  watchdog('[password_changer_api_inc][remove_system function] ',
+           'Uninstall module %module_name', array('%module_name' => $module_name), WATCHDOG_ERROR);
   //Remove from array
   unset($register_modules[$module_name]);
   //Save to Drupal persistent variable
@@ -399,7 +400,6 @@ function _password_changer_api_check_user($system, $user_name) {
  if(file_exists($include_file) && ($filename != '')) {
   //Include sub-module file to be able to call the hook if define 
   include_once($include_file);
-  
   //Call the module hook to check the user define by the sub-module 
   return module_invoke($system, 'password_changer_api_check_user', $user_name);
  }
@@ -430,6 +430,9 @@ function _password_changer_api_check_user($system, $user_name) {
  */
 
 function _password_changer_api_change_password($system, $user_name, $pass, $curr_pass = NULL) {
+  
+  watchdog('[password_changer_api_inc][change_password hook] ', 'System: !system and User name: !user_name',
+            array ('!system' => $system, '!user_name' => $user_name), WATCHDOG_DEBUG );
   
  //credential that are going to be change to the submodules to change password.
  $credentials = array( 'user_name' => $user_name, 'password' => $pass, 'current_password' => $curr_pass);
@@ -462,22 +465,18 @@ function _password_changer_api_change_password($system, $user_name, $pass, $curr
     //Set message call for drupal to set the password
     drupal_set_message($status->message, $status->status);
     
-    //Set message      
-    drupal_set_message($status->message, $status->status);
-    
     //Log status to the watchdog
-    watchdog('password_changer_api', $status->message, WATCHDOG_ERROR);
+    watchdog('[password_changer_api_inc][change_password hook] ', $status->message, WATCHDOG_ERROR);
     
    }
    else {
      //Set message
-     watchdog('password_changer_api', $status->message, WATCHDOG_INFO);
+     watchdog('[password_changer_api_inc][change_password hook] ', $status->message, WATCHDOG_INFO);
       
      drupal_set_message($status->message, $status->status);
      
    }  
   }
-   
 }
 
 /**
@@ -495,7 +494,7 @@ function password_changer_api_save_admin_message($admin_message  = '') {
  $admin_message = filter_xss($admin_message);
  
  //Save  message on the password_changer_api_admin_message
- variable_set('password_changer_api_admin_message', $admin_message);
+ variable_set('password_changer_api_admin_message ', $admin_message);
  
 }
 
@@ -523,7 +522,7 @@ function password_changer_api_simple_curl_call($url = NULL, $options = array(), 
   //Check if valid URL has been set  
   if (is_null($url)) {
    //Log Error
-    watchdog('password_changer_api', '(Function: password_changer_api_simple_curl_call)
+    watchdog('[password_changer_api_inc][simple_curl_call function] ', '(Function: password_changer_api_simple_curl_call)
             URL is set to NULL for your cURL call need to pass a valid  URL', WATCHDOG_ERROR);
     //Throw exeption
     throw new passwordChangerApiExeption('(Function: password_changer_api_simple_curl_call)
@@ -533,7 +532,7 @@ function password_changer_api_simple_curl_call($url = NULL, $options = array(), 
   //Check if URL is formated valid
   if( ! preg_match('|^http(s)?://[a-z0-9-]+(.[a-z0-9-]+)*(:[0-9]+)?(/.*)?$|i', $url) ) {
     //Log Error
-    watchdog('password_changer_api', '(Function: password_changer_api_simple_curl_call)
+    watchdog('[password_changer_api_inc][simple_curl_call function]', '(Function: password_changer_api_simple_curl_call)
             URL is not formated as valid URL', WATCHDOG_ERROR);
     //Throw exeption
     throw new passwordChangerApiExeption('(Function: password_changer_api_simple_curl_call)
@@ -567,5 +566,38 @@ function password_changer_api_simple_curl_call($url = NULL, $options = array(), 
  return $result;
  
 }
+
+
+/**
+ * Generate a ramdom string.
+ *
+ * Generate a ramdom string with default length of eight.
+ *
+ * @param integer length The length of the string that is going to be returned.
+ *
+ * @return string Ramdom string.
+ */
+
+function password_changer_api_generate_random_string( $length = 8) {
+
+    $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    srand((double)microtime()*1000000);
+    $i = 0;
+
+    $string = '' ;
+
+    while ($i <= $length) {
+        $num = rand() % 33;
+        $tmp = substr($chars, $num, 1);
+        $string = $string . $tmp;
+        $i++;
+    }
+    return $string;
+}
+
+
+
+
+
 
 

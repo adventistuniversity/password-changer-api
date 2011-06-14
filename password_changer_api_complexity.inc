@@ -22,11 +22,12 @@ function password_changer_api_check_maximum_length_requirement($password) {
 
  if (strlen($password) > $min_maximum['value'] && $min_maximum != 0) {
     
-  watchdog('password_changer_api', 'Password is longer than the maximum length' .
-           $min_maximum['value'] . ' require by system ' . $min_maximum['system'], WATCHDOG_INFO);
+  watchdog('[password_changer_api_complexity][check_maximum_length_requirement]',
+           'Password is longer than the maximum length' . $min_maximum['value'] . ' require by system ' . $min_maximum['system'], WATCHDOG_INFO);
     
   throw new passwordChangerApiExeption(t('Password is longer than the maximum length  @maxlen require by system @system',
                                      array( '@maxlen' => $min_maximum['value'],  '@system' => $min_maximum['system'] )));
+  
   return array('status' => t('error'), 'message' => t('Password is longer than the maximum lent @maxlen require by system @system',
                                      array( '@maxlen' => $min_maximum['value'],  '@system' => $min_maximum['system'] )));
  }
@@ -55,8 +56,9 @@ function password_changer_api_check_minimum_length_requirement($password) {
  
  if (strlen($password) < $max_minimum['value'] && $max_minimum != 0) {
  
-  watchdog('password_changer_api', 'Password is shorter than the minimum length ' .
-           $max_minimum['value'] . ' require by system ' . $max_minimum['system'], WATCHDOG_INFO);  
+  watchdog('[password_changer_api_complexity][_check_minimum_length_requirement]', 'Password is shorter than the minimum length ' .
+           $max_minimum['value'] . ' require by system ' . $max_minimum['system'], WATCHDOG_INFO);
+  
   throw new passwordChangerApiExeption(t('Password is shorter than the minimum length  @minlen require by system @system',
                                          array( '@minlen' => $max_minimum['value'],  '@system' => $max_minimum['system'] )));
   
@@ -180,13 +182,15 @@ function _password_changer_api_check_pattern($password, $pattern, $value, $error
   
  //if is require and it does not have this value at lea
  if ($value > 0 && $has_item < $value ) {
-   watchdog( WATCHDOG_ERROR, 'Value is required and is not in the password.' .
-            $error_message);
+   watchdog('[password_changer_api_complexity][password_changer_api_check_pattern]' ,
+            'Value is required and is not in the password.' .
+            $error_message, WATCHDOG_ERROR);
    throw new passwordChangerApiExeption($error_message); 
  }//if is this value is deny and it has this value throw an error
  elseif ($value < 0 && $has_item > 0 ) {
-   watchdog(WATCHDOG_ERROR, 'Value is deny and is in the password' .
-            $error_message);
+   watchdog('[password_changer_api_complexity][password_changer_api_check_pattern]',
+            'Value is deny and is in the password' .
+            $error_message, WATCHDOG_ERROR);
    throw new passwordChangerApiExeption($error_message); 
  }
  
@@ -223,10 +227,10 @@ function _password_changer_api_get_max_minlength( $register_module ) {
  }
 
  if (empty($max_minlength)) {  
-   watchdog( 'password_changer_api_complexity', 'None maximum minimum value set in the sub-modules.', WATCHDOG_INFO);
+   watchdog( '[password_changer_api_complexity][_get_max_minlength]', 'None maximum minimum value set in the sub-modules.', WATCHDOG_INFO);
  }
  else { 
-   watchdog( 'password_changer_api_complexity', 'Maximum minimum value between sub-modules is ' . $max_minlength['value'] . ' from sub module ' . $max_minlength['system'] , WATCHDOG_INFO);
+   watchdog( '[password_changer_api_complexity][_get_max_minlength]', 'Maximum minimum value between sub-modules is ' . $max_minlength['value'] . ' from sub module ' . $max_minlength['system'] , WATCHDOG_INFO);
  }   
  
  //Return array with the max min and the module name
@@ -264,10 +268,10 @@ function _password_changer_api_get_mim_maxlength( $register_module ) {
  //Return array with the min maximum length and the module name
  //Log to watchdog.
  if ( empty($min_maxlength) ) {  
-   watchdog( 'password_changer_api_complexity', 'None minimum maximum value set in the sub-modules.', WATCHDOG_INFO);
+   watchdog( '[password_changer_api_complexity][_get_mim_maxlength]', 'None minimum maximum value set in the sub-modules.', WATCHDOG_INFO);
  }
  else { 
-   watchdog( 'password_changer_api_complexity', 'Maximum Minimum value between sub-modules is ' . $min_maxlength['value'] . ' from sub module ' . $min_maxlength['system'] , WATCHDOG_INFO); 
+   watchdog( '[password_changer_api_complexity][_get_mim_maxlength]', 'Maximum Minimum value between sub-modules is ' . $min_maxlength['value'] . ' from sub module ' . $min_maxlength['system'] , WATCHDOG_INFO); 
  }             
  //return 
  return $min_maxlength;
@@ -288,7 +292,7 @@ function _password_changer_api_get_mim_maxlength( $register_module ) {
 
 function _password_changer_api_check_global_conflicts() {
 
- watchdog('password_changer_api', 'Checking global conflicts for password changer.');
+ watchdog('[password_changer_api_complexity][_check_global_conflicts]', 'Checking global conflicts for password changer.');
  
  $register_modules = variable_get('password_changer_api_register_modules', array());
  
@@ -307,7 +311,7 @@ function _password_changer_api_check_global_conflicts() {
   
    if ($min_maximum['value'] < $max_minimum['value']) {
      
-     watchdog('password_changer_api_complexity', '[CONFLICT] The maximum length of password 
+     watchdog('[password_changer_api_complexity][_check_global_conflicts]', '[CONFLICT] The maximum length of password 
      			 allow is smaller than the minimum password length allow.', WATCHDOG_ERROR);
      
      throw new passwordChangerApiExeption('[CONFLICT] The maximum length of password allow is smaller than the minimum password length allow.');
@@ -321,23 +325,22 @@ function _password_changer_api_check_global_conflicts() {
  foreach ($potential_conflicts AS $property => $requirements ) {
   
   if (isset($requirements['allow']) && isset($requirements['deny'])) {
-  
-   $message = t("Module(s) @allow allow @property and module(s) @deny deny @property this is causing a conflict.",
-               array( '@allow' => trim($requirements['allow'], ','), '@property' => $property, '@deny' => trim($requirements['deny'], ',')));
    
-   watchdog('password_changer_api_complexity', $message, WATCHDOG_ERROR);
+    watchdog('[password_changer_api_complexity][_check_global_conflicts]', "Module(s) @allow allow @property and module(s) @deny deny @property this is causing a conflict.",
+            array( '@allow' => trim($requirements['allow'], ','), '@property' => $property, '@deny' => trim($requirements['deny'], ',')),
+                  WATCHDOG_ERROR);
    
-   throw new passwordChangerApiExeption('[CONFLICT]' . $message ); 
+    throw new passwordChangerApiExeption('[CONFLICT]' . t("Module(s) @allow allow @property and module(s) @deny deny @property this is causing a conflict.",
+               array( '@allow' => trim($requirements['allow'], ','), '@property' => $property, '@deny' => trim($requirements['deny'], ','))) ); 
     
   }
   elseif (isset($requirements['require']) && isset($requirements['deny'])) {
-   
-   $message = t("Module(s) @require require @property and module(s) @deny deny @property this is causing a conflict.",
-                array('@require' => trim($requirements['require'], ','), '@property' => $property, '@deny' => trim($requirements['deny'], ',')));
-   
-   watchdog('password_changer_api_complexity', $message, WATCHDOG_ERROR);
+
+    watchdog('[password_changer_api_complexity][_check_global_conflicts]', "Module(s) @require require @property and module(s) @deny deny @property this is causing a conflict.",
+            array('@require' => trim($requirements['require'], ','), '@property' => $property, '@deny' => trim($requirements['deny'], ',')), WATCHDOG_ERROR);
  
-   throw new passwordChangerApiExeption('[CONFLICT] ' . $message ); 
+    throw new passwordChangerApiExeption('[CONFLICT] ' . t("Module(s) @require require @property and module(s) @deny deny @property this is causing a conflict.",
+                array('@require' => trim($requirements['require'], ','), '@property' => $property, '@deny' => trim($requirements['deny'], ','))) ); 
   } 
  }
  
