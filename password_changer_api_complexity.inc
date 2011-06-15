@@ -11,15 +11,16 @@
 */
 
 
-function password_changer_api_check_maximum_length_requirement($password) {
- 
+function password_changer_api_check_maximum_length_requirement($password, $module_list = array()) {
+
  //Get register modules
- $register_modules = variable_get('password_changer_api_register_modules', array());
+ $register_modules = (empty($module_list)) ? variable_get('password_changer_api_register_modules', array())
+                       : $module_list;
+
  
  //Get maximum length
- $min_maximum =  _password_changer_api_get_mim_maxlength( $register_modules );
+ $min_maximum =  _password_changer_api_get_mim_maxlength( $register_modules);
  
-
  if (strlen($password) > $min_maximum['value'] && $min_maximum != 0) {
     
   watchdog('[password_changer_api_complexity][check_maximum_length_requirement]',
@@ -46,10 +47,12 @@ function password_changer_api_check_maximum_length_requirement($password) {
  */
 
 
-function password_changer_api_check_minimum_length_requirement($password) {
-  
+function password_changer_api_check_minimum_length_requirement($password, $module_list = array()) {
+
+   
  //Get register modules
- $register_modules = variable_get('password_changer_api_register_modules', array());
+ $register_modules = (empty($module_list)) ? variable_get('password_changer_api_register_modules', array())
+                        :$module_list;
 
  //Get minimum length 
  $max_minimum  =  _password_changer_api_get_max_minlength( $register_modules );
@@ -77,15 +80,35 @@ function password_changer_api_check_minimum_length_requirement($password) {
  * breaks a complexity rule from any of the sub modules install.
  *
  * @param string $password new password.
+ *
+ * @param string $user_role use to check complexity by user role.
  * 
  */
 
-function _password_changer_api_check_property_requirement($password) {
+function _password_changer_api_check_property_requirement($password, $user_role = NULL) {
  
- //Get register modules
+ //Get register module
  $register_modules = variable_get('password_changer_api_register_modules', array());
- 
- 
+
+ //Modules list is in session  
+ if (isset($_SESSION['permission_modules'])) {
+   //Create list modules with it's property 
+   foreach($_SESSION['permission_modules'] AS $index => $module_name) {
+     
+     $module_list[$module_name] = $register_modules[$module_name];
+     
+     foreach($user_role AS $index => $role) {
+       
+       if (isset(  $module_list[$module_name]['#complexity'][$role])) {
+        
+         $module_list[$module_name]['#complexity'] =  $register_modules[$module_name]['#complexity'][$role];
+                
+         break;
+       }
+     }         
+   }
+ }
+  
  //Default regex values 
  $default_regex_values = array('symbols' => '/[^A-Za-z0-9]/',
                                'digit' => '/[0-9]/',
@@ -96,21 +119,19 @@ function _password_changer_api_check_property_requirement($password) {
  //Default functions
  $default_validate_function = array('max_length' => 'check_maximum_length_requirement',
                                     'min_length' => 'check_minimum_length_requirement');
- 
+  
  
   if (isset($_SESSION['permission_modules'])) {
    
     //For modules that user has account 
     foreach ($_SESSION['permission_modules'] AS $index => $permission_module) {
-     
-     //Check if the module has complexity rules 
-      if(isset($register_modules[$permission_module]['#complexity'])) {
       
-        //Getting complexity
-        $complexity = $register_modules[$permission_module]['#complexity'];
+       
+       //Check if the module has complexity rules 
+      if(isset($module_list[$permission_module]['#complexity'])) {
                 
         //Foreach property in the complexity
-        foreach ($complexity AS $property_name => $property_value ) {
+        foreach ($module_list[$permission_module]['#complexity'] AS $property_name => $property_value ) {
    
            //Value set in the complexity array this could be a negative (deny)number
            //positive(require at least) number or zero (allow)
@@ -130,13 +151,13 @@ function _password_changer_api_check_property_requirement($password) {
            //If property has a pattern, value (negative number, positive number or zero)
            //and new password set then check the patter and throw error if necessary.
            if (!is_null($pattern) && isset($value) && isset($password)) {
-           _password_changer_api_check_pattern( $password, $pattern, $value, $property_value['error_message'] );
+            _password_changer_api_check_pattern( $password, $pattern, $value, $property_value['error_message'] );
            }
                  
            //Call functions define as default for max_length and min_length
            if (isset($default_validate_function[$property_name])) {
             //Throw an exception
-            module_invoke('password_changer_api', $default_validate_function[$property_name], $password);
+            module_invoke('password_changer_api', $default_validate_function[$property_name], $password,  $module_list);
            }
            
            //Call validation function define by user
@@ -149,11 +170,11 @@ function _password_changer_api_check_property_requirement($password) {
         
         // End of foreach
        }
-      } 
+      }
+      //Remove the complexity variable
+      unset($complexity);
     }
-    
   }
-  
 }
 
 /*
@@ -455,13 +476,17 @@ function _password_changer_api_get_potential_conflicts($register_module) {
  * Check password against the password complexity for each module install.
  *
  * @param string $password user new password.
+ *
+ * @param string $user_type modules could have different user types to and
+ * check of complexity base of user type.
+ * 
  * 
 */
 
 
-function password_changer_api_check_complexity($password) {
+function password_changer_api_check_complexity($password, $user_role = NULL) {
  
- _password_changer_api_check_property_requirement($password);
+ _password_changer_api_check_property_requirement($password, $user_role);
  
  //Call the module hook to change passwords
  module_invoke_all('password_changer_api_check_complexity');
